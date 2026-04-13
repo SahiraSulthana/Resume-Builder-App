@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumeForge — Smart Resume Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { outfit: ['Outfit','sans-serif'], playfair: ['Playfair Display','serif'] },
+                    colors: {
+                        brand: { 50:'#ecfdf5',100:'#d1fae5',200:'#a7f3d0',300:'#6ee7b7',400:'#34d399',500:'#10b981',600:'#059669',700:'#047857',800:'#065f46',900:'#064e3b' },
+                        sidebar: '#0c0f1a'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Outfit', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .step-btn { position: relative; transition: all 0.3s ease; }
+        .step-btn::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+            background: #059669; border-radius: 0 3px 3px 0; transform: scaleY(0); transition: transform 0.3s ease;
+        }
+        .step-btn.active::before, .step-btn.completed::before { transform: scaleY(1); }
+        .step-btn.active { background: rgba(5,150,105,0.12); color: #34d399; }
+        .step-btn.completed { color: #6ee7b7; }
+        .step-btn:hover:not(.active) { background: rgba(255,255,255,0.04); }
+
+        .form-label { display: block; font-size: 0.8rem; font-weight: 600; color: #475569; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .form-input {
+            width: 100%; padding: 0.6rem 0.85rem; border: 1.5px solid #e2e8f0; border-radius: 0.5rem;
+            font-size: 0.9rem; font-family: 'Outfit', sans-serif; transition: border-color 0.2s, box-shadow 0.2s; background: #fff;
+        }
+        .form-input:focus { outline: none; border-color: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.1); }
+        .form-input::placeholder { color: #94a3b8; }
+        textarea.form-input { resize: vertical; min-height: 80px; }
+
+        .entry-card {
+            background: #fff; border: 1.5px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem;
+            margin-bottom: 1rem; transition: box-shadow 0.2s; animation: slideIn 0.3s ease;
+        }
+        .entry-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #059669, #047857); color: #fff; padding: 0.65rem 1.5rem;
+            border-radius: 0.5rem; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer;
+            transition: all 0.2s; font-family: 'Outfit', sans-serif; display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(5,150,105,0.35); }
+        .btn-secondary {
+            background: #fff; color: #475569; padding: 0.65rem 1.5rem; border-radius: 0.5rem; font-weight: 600;
+            font-size: 0.9rem; border: 1.5px solid #e2e8f0; cursor: pointer; transition: all 0.2s; font-family: 'Outfit', sans-serif;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-secondary:hover { border-color: #94a3b8; background: #f8fafc; }
+        .btn-danger {
+            background: none; color: #ef4444; border: none; cursor: pointer; padding: 0.35rem 0.6rem;
+            border-radius: 0.375rem; font-size: 0.8rem; font-family: 'Outfit', sans-serif; transition: background 0.2s;
+        }
+        .btn-danger:hover { background: #fef2f2; }
+
+        .add-entry-btn {
+            width: 100%; padding: 0.75rem; border: 2px dashed #d1d5db; border-radius: 0.75rem;
+            background: transparent; color: #6b7280; font-weight: 600; cursor: pointer; transition: all 0.2s;
+            font-family: 'Outfit', sans-serif; font-size: 0.9rem;
+        }
+        .add-entry-btn:hover { border-color: #059669; color: #059669; background: #ecfdf5; }
+
+        .template-chip {
+            padding: 0.35rem 0.85rem; border-radius: 2rem; font-size: 0.75rem; font-weight: 600;
+            border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; transition: all 0.2s;
+            font-family: 'Outfit', sans-serif; color: #64748b;
+        }
+        .template-chip.active { border-color: #059669; background: #ecfdf5; color: #059669; }
+
+        .skill-chip {
+            padding: 0.4rem 0.85rem; border-radius: 2rem; font-size: 0.8rem; font-weight: 500;
+            border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; transition: all 0.2s;
+            font-family: 'Outfit', sans-serif; color: #64748b; display: inline-flex; align-items: center; gap: 0.4rem;
+            user-select: none;
+        }
+        .skill-chip:hover { border-color: #059669; color: #059669; }
+        .skill-chip.selected { border-color: #059669; background: #ecfdf5; color: #059669; font-weight: 600; }
+        .skill-chip.selected::before { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 0.6rem; }
+
+        .photo-upload {
+            width: 100px; height: 100px; border-radius: 50%; border: 2.5px dashed #d1d5db;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            overflow: hidden; transition: border-color 0.2s; background: #f8fafc; flex-shrink: 0;
+        }
+        .photo-upload:hover { border-color: #059669; }
+        .photo-upload img { width: 100%; height: 100%; object-fit: cover; }
+
+        .toast {
+            padding: 0.75rem 1.25rem; border-radius: 0.5rem; font-size: 0.85rem; font-weight: 500;
+            animation: toastIn 0.35s ease; display: flex; align-items: center; gap: 0.5rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12); max-width: 380px;
+        }
+        .toast.success { background: #065f46; color: #d1fae5; }
+        .toast.error { background: #991b1b; color: #fecaca; }
+        .toast.info { background: #1e3a5f; color: #bfdbfe; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeStep { from { opacity: 0; } to { opacity: 1; } }
+        .step-content { animation: fadeStep 0.3s ease; }
+
+        .sidebar-glow {
+            position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(5,150,105,0.06) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .char-count { font-size: 0.75rem; color: #94a3b8; text-align: right; margin-top: 0.25rem; }
+        .char-count.warn { color: #f59e0b; }
+        .char-count.over { color: #ef4444; }
+
+        @media (max-width: 1023px) {
+            #preview-panel { position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; transform: translateX(100%); transition: transform 0.35s ease; }
+            #preview-panel.open { transform: translateX(0); }
+            #preview-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 39; }
+            #preview-overlay.open { display: block; }
+        }
+
+        .empty-state { text-align: center; padding: 2.5rem 1rem; color: #94a3b8; }
+        .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.4; }
+
+        .username-input {
+            flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 0.375rem; padding: 0.4rem 0.6rem; font-size: 0.8rem; color: #fff;
+            font-family: 'Outfit', sans-serif; outline: none; transition: border-color 0.2s;
+        }
+        .username-input::placeholder { color: rgba(255,255,255,0.25); }
+        .username-input:focus { border-color: #059669; }
+    </style>
+</head>
+<body class="font-outfit bg-gray-50 text-gray-800">
+
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+    <div id="preview-overlay" onclick="togglePreview()"></div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 bg-sidebar text-white flex-shrink-0 fixed h-full z-30 flex flex-col overflow-hidden">
+            <div class="sidebar-glow"></div>
+            <div class="relative p-5 pb-4 border-b border-white/5">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center">
+                        <i class="fas fa-file-alt text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold tracking-tight">ResumeForge</h1>
+                        <p class="text-[0.65rem] text-white/40 font-medium tracking-wide uppercase">Smart Builder</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative p-4 border-b border-white/5">
+                <label class="text-[0.65rem] text-white/30 uppercase tracking-wider font-semibold mb-1.5 block">Username (for Database)</label>
+                <div class="flex gap-1.5 mb-2">
+                    <input type="text" id="username-input" class="username-input" placeholder="Enter your username">
+                    <button onclick="loadFromServer()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-xs text-white font-semibold transition-colors flex-shrink-0" title="Load from Database">
+                        <i class="fas fa-cloud-download-alt"></i>
+                    </button>
+                </div>
+                <button onclick="saveToServer()" class="w-full py-1.5 bg-brand-600 hover:bg-brand-500 rounded-md text-xs text-white font-semibold transition-colors cursor-pointer border-none font-outfit flex items-center justify-center gap-1.5">
+                    <i class="fas fa-cloud-upload-alt"></i> Save to Database
+                </button>
+                <p id="logged-in-as" class="text-[0.6rem] text-brand-400 mt-1.5 hidden"><i class="fas fa-check-circle mr-1"></i>Signed in as <span id="display-username" class="font-semibold"></span></p>
+            </div>
+
+            <nav class="relative flex-1 py-3 px-2.5 space-y-0.5 overflow-y-auto" id="step-nav">
+                <button class="step-btn active w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3" data-step="0"><i class="fas fa-user w-4 text-center text-xs"></i> Personal Info</button>
+                <button class="step-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3 text-white/50" data-step="1"><i class="fas fa-align-left w-4 text-center text-xs"></i> Summary</button>
+                <button class="step-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3 text-white/50" data-step="2"><i class="fas fa-graduation-cap w-4 text-center text-xs"></i> Education</button>
+                <button class="step-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3 text-white/50" data-step="3"><i class="fas fa-briefcase w-4 text-center text-xs"></i> Experience</button>
+                <button class="step-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3 text-white/50" data-step="4"><i class="fas fa-cogs w-4 text-center text-xs"></i> Skills</button>
+                <button class="step-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3 text-white/50" data-step="5"><i class="fas fa-project-diagram w-4 text-center text-xs"></i> Projects</button>
+                <button class="step-btn w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium flex items-center gap-3 text-white/50" data-step="6"><i class="fas fa-download w-4 text-center text-xs"></i> Export</button>
+            </nav>
+
+            <div class="relative p-4 border-t border-white/5">
+                <p class="text-[0.65rem] text-white/30 uppercase tracking-wider font-semibold mb-2.5">Template</p>
+                <div class="flex gap-1.5">
+                    <button class="template-chip active" data-template="modern">Modern</button>
+                    <button class="template-chip" data-template="classic">Classic</button>
+                    <button class="template-chip" data-template="minimal">Minimal</button>
+                </div>
+                <div class="mt-4">
+                    <button onclick="clearAllData()" class="w-full text-xs text-white/30 hover:text-red-400 transition-colors py-1.5 rounded border border-white/5 hover:border-red-400/30 cursor-pointer bg-transparent font-medium font-outfit">
+                        <i class="fas fa-trash-alt mr-1"></i> Clear All Data
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+        <!-- Main Content -->
+        <div class="ml-0 lg:ml-64 flex flex-1 min-w-0">
+            <div class="flex-1 min-w-0 flex flex-col" style="height:100vh;">
+                <header class="bg-white border-b border-gray-100 px-4 lg:px-6 py-3 flex items-center gap-3 flex-shrink-0">
+                    <button onclick="toggleSidebar()" class="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"><i class="fas fa-bars"></i></button>
+                    <div class="flex-1">
+                        <h2 id="step-title" class="text-base font-bold text-gray-800">Personal Information</h2>
+                        <p id="step-subtitle" class="text-xs text-gray-400">Fill in your basic contact details</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="auto-save-badge" class="text-[0.65rem] text-brand-600 font-semibold hidden"><i class="fas fa-check-circle mr-1"></i>Saved to DB</span>
+                        <button onclick="togglePreview()" class="lg:hidden btn-secondary !py-2 !px-3 text-sm"><i class="fas fa-eye"></i></button>
+                    </div>
+                </header>
+
+                <div id="form-container" class="flex-1 overflow-y-auto p-5 lg:p-8 pb-28">
+                    <!-- Step 0 -->
+                    <div class="step-content" data-step="0">
+                        <div class="flex flex-col sm:flex-row gap-6 items-start">
+                            <div class="flex flex-col items-center gap-2">
+                                <div class="photo-upload" onclick="document.getElementById('photo-input').click()" id="photo-preview-area">
+                                    <div class="text-center" id="photo-placeholder"><i class="fas fa-camera text-gray-300 text-lg"></i><p class="text-[0.6rem] text-gray-400 mt-1">Upload</p></div>
+                                </div>
+                                <input type="file" id="photo-input" accept="image/*" class="hidden">
+                                <button type="button" id="remove-photo-btn" class="text-xs text-red-400 hover:text-red-500 hidden cursor-pointer bg-transparent border-none font-outfit" onclick="removePhoto()">Remove</button>
+                            </div>
+                            <div class="flex-1 w-full space-y-4">
+                                <div><label class="form-label">Full Name <span class="text-red-400">*</span></label><input type="text" class="form-input" data-section="personal" data-field="fullName" placeholder="e.g. Sarah Johnson"></div>
+                                <div><label class="form-label">Job Title</label><input type="text" class="form-input" data-section="personal" data-field="jobTitle" placeholder="e.g. Senior Software Engineer"></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label class="form-label">Email <span class="text-red-400">*</span></label><input type="email" class="form-input" data-section="personal" data-field="email" placeholder="sarah@example.com"></div>
+                                    <div><label class="form-label">Phone</label><input type="tel" class="form-input" data-section="personal" data-field="phone" placeholder="+1 (555) 123-4567"></div>
+                                </div>
+                                <div><label class="form-label">Address</label><input type="text" class="form-input" data-section="personal" data-field="address" placeholder="San Francisco, CA"></div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label class="form-label">LinkedIn</label><input type="url" class="form-input" data-section="personal" data-field="linkedin" placeholder="linkedin.com/in/sarah"></div>
+                                    <div><label class="form-label">Website / Portfolio</label><input type="url" class="form-input" data-section="personal" data-field="website" placeholder="sarahjohnson.dev"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Step 1 -->
+                    <div class="step-content hidden" data-step="1">
+                        <div class="bg-brand-50 border border-brand-100 rounded-lg p-4 mb-5 flex gap-3 items-start">
+                            <i class="fas fa-lightbulb text-brand-500 mt-0.5"></i>
+                            <div class="text-sm text-brand-800"><p class="font-semibold mb-1">Writing Tips</p><p>Keep your summary between 2-4 sentences. Highlight your years of experience, key skills, and career goals.</p></div>
+                        </div>
+                        <div><label class="form-label">Professional Summary</label><textarea class="form-input" rows="6" data-section="summary" data-field="value" placeholder="Results-driven software engineer with 5+ years of experience..."></textarea><p class="char-count" id="summary-char-count">0 / 500 characters</p></div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="step-content hidden" data-step="2">
+                        <div id="education-entries"></div>
+                        <div id="education-empty" class="empty-state"><i class="fas fa-graduation-cap block"></i><p class="font-semibold text-sm mb-1">No education entries yet</p><p class="text-xs">Add your educational background</p></div>
+                        <button class="add-entry-btn" onclick="addEntry('education')"><i class="fas fa-plus mr-2"></i> Add Education</button>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="step-content hidden" data-step="3">
+                        <div id="experience-entries"></div>
+                        <div id="experience-empty" class="empty-state"><i class="fas fa-briefcase block"></i><p class="font-semibold text-sm mb-1">No experience entries yet</p><p class="text-xs">Add your work experience</p></div>
+                        <button class="add-entry-btn" onclick="addEntry('experience')"><i class="fas fa-plus mr-2"></i> Add Experience</button>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="step-content hidden" data-step="4">
+                        <div class="bg-brand-50 border border-brand-100 rounded-lg p-4 mb-5 flex gap-3 items-start">
+                            <i class="fas fa-hand-pointer text-brand-500 mt-0.5"></i>
+                            <div class="text-sm text-brand-800"><p class="font-semibold mb-1">Click to Select</p><p>Tap any skill to add or remove it. You can also add custom skills below.</p></div>
+                        </div>
+                        <div id="predefined-skills-container" class="space-y-5"></div>
+                        <div class="mt-6 pt-5 border-t border-gray-100">
+                            <h4 class="font-semibold text-sm text-gray-700 mb-3"><i class="fas fa-plus-circle text-brand-500 mr-1.5"></i>Add Custom Skill</h4>
+                            <div class="flex gap-2 flex-wrap">
+                                <input type="text" id="custom-skill-name" class="form-input flex-1 min-w-[160px]" placeholder="Skill name (e.g. Docker)">
+                                <input type="text" id="custom-skill-category" class="form-input w-40" placeholder="Category">
+                                <button onclick="addCustomSkill()" class="btn-primary !py-2">Add</button>
+                            </div>
+                            <div id="custom-skills-display" class="mt-3 flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                    <!-- Step 5 -->
+                    <div class="step-content hidden" data-step="5">
+                        <div id="projects-entries"></div>
+                        <div id="projects-empty" class="empty-state"><i class="fas fa-project-diagram block"></i><p class="font-semibold text-sm mb-1">No projects added yet</p><p class="text-xs">Showcase your best work</p></div>
+                        <button class="add-entry-btn" onclick="addEntry('projects')"><i class="fas fa-plus mr-2"></i> Add Project</button>
+                    </div>
+                    <!-- Step 6 -->
+                    <div class="step-content hidden" data-step="6">
+                        <div class="max-w-lg mx-auto text-center py-6">
+                            <div class="w-20 h-20 rounded-full bg-brand-50 flex items-center justify-center mx-auto mb-5"><i class="fas fa-file-pdf text-brand-600 text-3xl"></i></div>
+                            <h3 class="text-xl font-bold mb-2">Your Resume is Ready</h3>
+                            <p class="text-gray-500 text-sm mb-8">Review the live preview, then export when satisfied.</p>
+                            <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+                                <button onclick="exportPDF()" class="btn-primary text-base px-8 py-3"><i class="fas fa-download"></i> Download PDF</button>
+                                <button onclick="printResume()" class="btn-secondary text-base px-8 py-3"><i class="fas fa-print"></i> Print</button>
+                            </div>
+                            <div class="bg-white border border-gray-100 rounded-xl p-5 text-left">
+                                <h4 class="font-bold text-sm mb-3 flex items-center gap-2"><i class="fas fa-clipboard-check text-brand-500"></i> Pre-Export Checklist</h4>
+                                <div class="space-y-2.5">
+                                    <label class="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"> Name and contact info filled</label>
+                                    <label class="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"> Professional summary written</label>
+                                    <label class="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"> At least one education entry</label>
+                                    <label class="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"> At least one experience entry</label>
+                                    <label class="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"> Relevant skills selected</label>
+                                    <label class="flex items-center gap-2.5 text-sm cursor-pointer"><input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"> No spelling or grammar errors</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between mt-8 pt-5 border-t border-gray-100" id="form-nav">
+                        <button id="prev-btn" class="btn-secondary hidden" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Previous</button>
+                        <div class="flex-1"></div>
+                        <button id="next-btn" class="btn-primary" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Panel -->
+            <div id="preview-panel" class="w-[420px] flex-shrink-0 bg-gray-100 border-l border-gray-200 flex flex-col hidden lg:flex" style="height:100vh;">
+                <div class="bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                    <div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div><span class="text-xs font-bold text-gray-600 uppercase tracking-wider">Live Preview</span></div>
+                    <button onclick="togglePreview()" class="lg:hidden w-7 h-7 flex items-center justify-center rounded hover:bg-gray-100 text-gray-400"><i class="fas fa-times text-xs"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 flex justify-center">
+                    <div id="preview-wrapper" style="width:370px;overflow:hidden;flex-shrink:0;">
+                        <div id="resume-render" style="width:794px;min-height:1123px;transform:scale(0.466);transform-origin:top left;background:#fff;box-shadow:0 2px 20px rgba(0,0,0,0.1);border-radius:2px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+/* ===== STATE ===== */
+var STORAGE_KEY = 'resumeforge_data';
+var resumeData = getDefaultData();
+var currentStep = 0;
+var currentTemplate = 'modern';
+var idCounters = { education: 0, experience: 0, skills: 0, projects: 0 };
+var saveTimeout = null;
+
+var PREDEFINED_SKILLS = [
+    { category: 'Programming Languages', skills: ['Java', 'Python (Core)'] },
+    { category: 'Web Technologies', skills: ['HTML5', 'CSS3', 'JavaScript', 'React.js'] },
+    { category: 'Backend Technologies', skills: ['Spring Boot', 'Servlets', 'JDBC'] },
+    { category: 'Database Management', skills: ['MySQL'] },
+    { category: 'Core Concepts', skills: ['Object-Oriented Programming (OOP)', 'REST APIs'] },
+    { category: 'Tools & Frameworks', skills: ['GitHub', 'Eclipse', 'Visual Studio Code'] },
+    { category: 'Soft Skills', skills: ['Adaptability', 'Team Collaboration', 'Time Management', 'Communication Skills'] }
+];
+
+function getDefaultData() {
+    return { personal:{fullName:'',jobTitle:'',email:'',phone:'',address:'',linkedin:'',website:'',photo:''}, summary:{value:''}, education:[], experience:[], skills:[], projects:[] };
+}
+
+var stepMeta = [
+    {title:'Personal Information',subtitle:'Fill in your basic contact details'},
+    {title:'Professional Summary',subtitle:'Write a brief overview of your career'},
+    {title:'Education',subtitle:'Add your educational background'},
+    {title:'Work Experience',subtitle:'Detail your professional history'},
+    {title:'Skills',subtitle:'Select your technical and soft skills'},
+    {title:'Projects',subtitle:'Showcase your notable work'},
+    {title:'Export Resume',subtitle:'Download or print your resume'}
+];
+
+function getMonthOptions(){var m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return '<option value="">Month</option>'+m.map(function(v){return '<option value="'+v+'">'+v+'</option>';}).join('');}
+function getYearOptions(){var cy=new Date().getFullYear(),o='<option value="">Year</option>';for(var y=cy+5;y>=1970;y--)o+='<option value="'+y+'">'+y+'</option>';return o;}
+function esc(s){if(!s)return '';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function formatDate(sm,sy,em,ey){var s='';if(sm&&sy)s=sm+' '+sy;else if(sy)s=sy;else return '';if(em&&ey)s+=' \u2014 '+em+' '+ey;else if(ey)s+=' \u2014 '+ey;return s;}
+
+function showToast(message,type){type=type||'success';var c=document.getElementById('toast-container'),t=document.createElement('div');t.className='toast '+type;var i={success:'fa-check-circle',error:'fa-exclamation-circle',info:'fa-info-circle'};t.innerHTML='<i class="fas '+(i[type]||i.info)+'"></i> '+esc(message);c.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transform='translateX(40px)';t.style.transition='all 0.3s';setTimeout(function(){t.remove();},300);},3500);}
+
+function goToStep(step){if(step<0||step>6)return;document.querySelectorAll('.step-content').forEach(function(el){el.classList.add('hidden');});var t=document.querySelector('.step-content[data-step="'+step+'"]');if(t)t.classList.remove('hidden');document.querySelectorAll('.step-btn').forEach(function(btn,i){btn.classList.remove('active','completed');btn.classList.add('text-white/50');if(i<step){btn.classList.add('completed');btn.classList.remove('text-white/50');}if(i===step){btn.classList.add('active');btn.classList.remove('text-white/50');}});document.getElementById('step-title').textContent=stepMeta[step].title;document.getElementById('step-subtitle').textContent=stepMeta[step].subtitle;document.getElementById('prev-btn').classList.toggle('hidden',step===0);var nb=document.getElementById('next-btn');if(step===6)nb.classList.add('hidden');else{nb.classList.remove('hidden');nb.innerHTML='Next <i class="fas fa-arrow-right"></i>';}document.getElementById('form-nav').classList.toggle('hidden',step===6);currentStep=step;document.getElementById('form-container').scrollTop=0;toggleSidebar(false);}
+function nextStep(){goToStep(currentStep+1);}
+function prevStep(){goToStep(currentStep-1);}
+
+function toggleSidebar(forceState){var sb=document.getElementById('sidebar'),ov=document.getElementById('sidebar-overlay'),isOpen=!sb.classList.contains('-translate-x-full'),shouldOpen=typeof forceState==='boolean'?forceState:!isOpen;if(shouldOpen){sb.classList.remove('-translate-x-full');ov.classList.remove('hidden');}else{sb.classList.add('-translate-x-full');ov.classList.add('hidden');}}
+function togglePreview(){var pp=document.getElementById('preview-panel'),po=document.getElementById('preview-overlay');pp.classList.toggle('open');po.classList.toggle('open');pp.classList.toggle('hidden');}
+
+function addEntry(section){var id=++idCounters[section],container=document.getElementById(section+'-entries'),emptyState=document.getElementById(section+'-empty'),entryData;if(section==='education')entryData={id:id,institution:'',degree:'',field:'',startMonth:'',startYear:'',endMonth:'',endYear:'',gpa:'',description:''};else if(section==='experience')entryData={id:id,company:'',title:'',startMonth:'',startYear:'',endMonth:'',endYear:'',location:'',description:''};else if(section==='projects')entryData={id:id,name:'',role:'',technologies:'',startMonth:'',startYear:'',endMonth:'',endYear:'',description:'',link:''};resumeData[section].push(entryData);var html='';if(section==='education')html=buildEducationHTML(id);else if(section==='experience')html=buildExperienceHTML(id);else if(section==='projects')html=buildProjectHTML(id);container.insertAdjacentHTML('beforeend',html);if(emptyState)emptyState.classList.add('hidden');updatePreview();scheduleAutoSave();showToast('Entry added','success');}
+
+function removeEntry(section,id){resumeData[section]=resumeData[section].filter(function(e){return e.id!==id;});var el=document.querySelector('[data-entry-id="'+id+'"][data-section="'+section+'"]');if(el){el.style.opacity='0';el.style.transform='translateY(-10px)';el.style.transition='all 0.25s';setTimeout(function(){el.remove();checkEmpty(section);},250);}updatePreview();scheduleAutoSave();}
+function checkEmpty(section){if(section==='skills')return;var empty=document.getElementById(section+'-empty');if(empty)empty.classList.toggle('hidden',resumeData[section].length>0);}
+
+function buildEducationHTML(id){return '<div class="entry-card" data-entry-id="'+id+'" data-section="education"><div class="flex justify-between items-center mb-4"><span class="font-semibold text-sm text-gray-700"><i class="fas fa-graduation-cap text-brand-500 mr-2"></i>Education</span><button type="button" class="btn-danger" onclick="removeEntry(\'education\','+id+')"><i class="fas fa-trash-alt mr-1"></i>Remove</button></div><div class="space-y-3"><div><label class="form-label">Institution</label><input type="text" class="form-input" data-section="education" data-id="'+id+'" data-field="institution" placeholder="e.g. MIT"></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label class="form-label">Degree</label><select class="form-input" data-section="education" data-id="'+id+'" data-field="degree"><option value="">Select</option><option>High School Diploma</option><option>Associate Degree</option><option>Bachelor\'s Degree</option><option>Master\'s Degree</option><option>PhD</option></select></div><div><label class="form-label">Field of Study</label><input type="text" class="form-input" data-section="education" data-id="'+id+'" data-field="field" placeholder="e.g. Computer Science"></div></div><div class="grid grid-cols-2 gap-3"><div><label class="form-label">Start</label><div class="flex gap-1.5"><select class="form-input text-sm" data-section="education" data-id="'+id+'" data-field="startMonth">'+getMonthOptions()+'</select><select class="form-input text-sm" data-section="education" data-id="'+id+'" data-field="startYear">'+getYearOptions()+'</select></div></div><div><label class="form-label">End</label><div class="flex gap-1.5"><select class="form-input text-sm" data-section="education" data-id="'+id+'" data-field="endMonth">'+getMonthOptions()+'</select><select class="form-input text-sm" data-section="education" data-id="'+id+'" data-field="endYear">'+getYearOptions()+'</select></div></div></div><div><label class="form-label">GPA (optional)</label><input type="text" class="form-input" data-section="education" data-id="'+id+'" data-field="gpa" placeholder="e.g. 3.8/4.0"></div><div><label class="form-label">Description (optional)</label><textarea class="form-input" rows="2" data-section="education" data-id="'+id+'" data-field="description" placeholder="Honors, activities..."></textarea></div></div></div>';}
+
+function buildExperienceHTML(id){return '<div class="entry-card" data-entry-id="'+id+'" data-section="experience"><div class="flex justify-between items-center mb-4"><span class="font-semibold text-sm text-gray-700"><i class="fas fa-briefcase text-brand-500 mr-2"></i>Experience</span><button type="button" class="btn-danger" onclick="removeEntry(\'experience\','+id+')"><i class="fas fa-trash-alt mr-1"></i>Remove</button></div><div class="space-y-3"><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label class="form-label">Company</label><input type="text" class="form-input" data-section="experience" data-id="'+id+'" data-field="company" placeholder="e.g. Google"></div><div><label class="form-label">Job Title</label><input type="text" class="form-input" data-section="experience" data-id="'+id+'" data-field="title" placeholder="e.g. Software Engineer"></div></div><div class="grid grid-cols-2 gap-3"><div><label class="form-label">Start</label><div class="flex gap-1.5"><select class="form-input text-sm" data-section="experience" data-id="'+id+'" data-field="startMonth">'+getMonthOptions()+'</select><select class="form-input text-sm" data-section="experience" data-id="'+id+'" data-field="startYear">'+getYearOptions()+'</select></div></div><div><label class="form-label">End</label><div class="flex gap-1.5"><select class="form-input text-sm" data-section="experience" data-id="'+id+'" data-field="endMonth">'+getMonthOptions()+'</select><select class="form-input text-sm" data-section="experience" data-id="'+id+'" data-field="endYear">'+getYearOptions()+'</select></div></div></div><div><label class="form-label">Location</label><input type="text" class="form-input" data-section="experience" data-id="'+id+'" data-field="location" placeholder="e.g. Mountain View, CA"></div><div><label class="form-label">Description (bullet points)</label><textarea class="form-input" rows="4" data-section="experience" data-id="'+id+'" data-field="description" placeholder="&#10;- Built scalable microservices&#10;- Led a team of 5 engineers&#10;- Reduced API latency by 40%"></textarea></div></div></div>';}
+
+function buildProjectHTML(id){return '<div class="entry-card" data-entry-id="'+id+'" data-section="projects"><div class="flex justify-between items-center mb-4"><span class="font-semibold text-sm text-gray-700"><i class="fas fa-project-diagram text-brand-500 mr-2"></i>Project</span><button type="button" class="btn-danger" onclick="removeEntry(\'projects\','+id+')"><i class="fas fa-trash-alt mr-1"></i>Remove</button></div><div class="space-y-3"><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label class="form-label">Project Name</label><input type="text" class="form-input" data-section="projects" data-id="'+id+'" data-field="name" placeholder="e.g. E-Commerce Platform"></div><div><label class="form-label">Your Role</label><input type="text" class="form-input" data-section="projects" data-id="'+id+'" data-field="role" placeholder="e.g. Full Stack Developer"></div></div><div><label class="form-label">Technologies (comma-separated)</label><input type="text" class="form-input" data-section="projects" data-id="'+id+'" data-field="technologies" placeholder="e.g. React, Node.js, MongoDB"></div><div class="grid grid-cols-2 gap-3"><div><label class="form-label">Start</label><div class="flex gap-1.5"><select class="form-input text-sm" data-section="projects" data-id="'+id+'" data-field="startMonth">'+getMonthOptions()+'</select><select class="form-input text-sm" data-section="projects" data-id="'+id+'" data-field="startYear">'+getYearOptions()+'</select></div></div><div><label class="form-label">End</label><div class="flex gap-1.5"><select class="form-input text-sm" data-section="projects" data-id="'+id+'" data-field="endMonth">'+getMonthOptions()+'</select><select class="form-input text-sm" data-section="projects" data-id="'+id+'" data-field="endYear">'+getYearOptions()+'</select></div></div></div><div><label class="form-label">Description</label><textarea class="form-input" rows="3" data-section="projects" data-id="'+id+'" data-field="description" placeholder="Brief description..."></textarea></div><div><label class="form-label">Link (optional)</label><input type="url" class="form-input" data-section="projects" data-id="'+id+'" data-field="link" placeholder="https://github.com/..."></div></div></div>';}
+
+/* ===== SKILLS ===== */
+function renderPredefinedSkills(){var c=document.getElementById('predefined-skills-container'),h='';PREDEFINED_SKILLS.forEach(function(g){h+='<div><p class="form-label" style="margin-bottom:0.5rem;">'+esc(g.category)+'</p><div class="flex flex-wrap gap-2">';g.skills.forEach(function(s){var sel=resumeData.skills.some(function(x){return x.name===s&&x.category===g.category;}),es=s.replace(/'/g,"\\'"),ec=g.category.replace(/'/g,"\\'");h+='<button type="button" class="skill-chip'+(sel?' selected':'')+'" onclick="togglePredefinedSkill(\''+es+'\',\''+ec+'\')">'+esc(s)+'</button>';});h+='</div></div>';});c.innerHTML=h;}
+function togglePredefinedSkill(name,category){var idx=-1;for(var i=0;i<resumeData.skills.length;i++){if(resumeData.skills[i].name===name&&resumeData.skills[i].category===category){idx=i;break;}}if(idx>=0)resumeData.skills.splice(idx,1);else resumeData.skills.push({name:name,category:category});renderPredefinedSkills();renderCustomSkills();updatePreview();scheduleAutoSave();}
+function addCustomSkill(){var ni=document.getElementById('custom-skill-name'),ci=document.getElementById('custom-skill-category'),name=ni.value.trim(),category=ci.value.trim()||'Custom';if(!name){showToast('Enter a skill name','error');ni.focus();return;}for(var i=0;i<resumeData.skills.length;i++){if(resumeData.skills[i].name.toLowerCase()===name.toLowerCase()){showToast('Skill already exists','error');return;}}resumeData.skills.push({name:name,category:category,custom:true});ni.value='';ci.value='';renderCustomSkills();renderPredefinedSkills();updatePreview();scheduleAutoSave();showToast('Skill added','success');}
+function removeCustomSkill(name){resumeData.skills=resumeData.skills.filter(function(s){return !(s.name===name&&s.custom);});renderCustomSkills();renderPredefinedSkills();updatePreview();scheduleAutoSave();}
+function renderCustomSkills(){var c=document.getElementById('custom-skills-display'),cs=resumeData.skills.filter(function(s){return s.custom;});if(!cs.length){c.innerHTML='';return;}c.innerHTML=cs.map(function(s){var e=s.name.replace(/'/g,"\\'");return '<span class="skill-chip selected" style="padding-right:0.4rem;">'+esc(s.name)+' <button type="button" onclick="removeCustomSkill(\''+e+'\')" style="margin-left:0.2rem;background:none;border:none;color:#059669;cursor:pointer;padding:0.15rem 0.3rem;font-size:0.65rem;"><i class="fas fa-times"></i></button></span>';}).join('');}
+
+/* ===== FORM INPUT ===== */
+document.getElementById('form-container').addEventListener('input',function(e){var el=e.target,section=el.dataset.section,field=el.dataset.field,id=el.dataset.id?parseInt(el.dataset.id):null;if(!section||!field)return;if(section==='personal')resumeData.personal[field]=el.value;else if(section==='summary'){resumeData.summary.value=el.value;updateCharCount(el.value.length);}else if(id!==null){for(var i=0;i<resumeData[section].length;i++){if(resumeData[section][i].id===id){resumeData[section][i][field]=el.value;break;}}}updatePreview();scheduleAutoSave();});
+function updateCharCount(len){var el=document.getElementById('summary-char-count');el.textContent=len+' / 500 characters';el.className='char-count'+(len>500?' over':len>400?' warn':'');}
+
+/* ===== PHOTO ===== */
+document.getElementById('photo-input').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){showToast('Image must be under 5MB','error');return;}var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){var canvas=document.createElement('canvas'),size=200;canvas.width=size;canvas.height=size;var ctx=canvas.getContext('2d'),min=Math.min(img.width,img.height);ctx.drawImage(img,(img.width-min)/2,(img.height-min)/2,min,min,0,0,size,size);resumeData.personal.photo=canvas.toDataURL('image/jpeg',0.8);renderPhotoPreview();updatePreview();scheduleAutoSave();showToast('Photo uploaded','success');};img.src=ev.target.result;};reader.readAsDataURL(file);});
+function renderPhotoPreview(){var area=document.getElementById('photo-preview-area'),rb=document.getElementById('remove-photo-btn');if(resumeData.personal.photo){area.innerHTML='<img src="'+resumeData.personal.photo+'" alt="Photo">';rb.classList.remove('hidden');}else{area.innerHTML='<div class="text-center" id="photo-placeholder"><i class="fas fa-camera text-gray-300 text-lg"></i><p class="text-[0.6rem] text-gray-400 mt-1">Upload</p></div>';rb.classList.add('hidden');}}
+function removePhoto(){resumeData.personal.photo='';document.getElementById('photo-input').value='';renderPhotoPreview();updatePreview();scheduleAutoSave();showToast('Photo removed','info');}
+
+/* ===== TEMPLATE SWITCH ===== */
+document.querySelectorAll('[data-template]').forEach(function(btn){btn.addEventListener('click',function(){currentTemplate=btn.dataset.template;document.querySelectorAll('[data-template]').forEach(function(b){b.classList.remove('active');});document.querySelectorAll('[data-template="'+currentTemplate+'"]').forEach(function(b){b.classList.add('active');});updatePreview();});});
+
+/* ===== SERVER ===== */
+function getUserName(){return document.getElementById('username-input').value.trim();}
+function saveToServer(){var username=getUserName();if(!username){showToast('Enter a username first','error');document.getElementById('username-input').focus();return;}showToast('Saving to database...','info');var params=new URLSearchParams();params.append('userName',username);params.append('resumeData',JSON.stringify(resumeData));fetch('api/resume/save',{method:'POST',body:params}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(result){if(result.status==='success'){sessionStorage.setItem('resume_username',username);document.getElementById('logged-in-as').classList.remove('hidden');document.getElementById('display-username').textContent=username;document.getElementById('auto-save-badge').classList.remove('hidden');setTimeout(function(){document.getElementById('auto-save-badge').classList.add('hidden');},2500);showToast('Saved to MySQL','success');}else throw new Error(result.message||'Error');}).catch(function(err){console.error('Save failed:',err);showToast('Save failed: '+err.message,'error');});}
+function loadFromServer(){var username=getUserName();if(!username){showToast('Enter a username to load','error');document.getElementById('username-input').focus();return;}showToast('Loading from database...','info');fetch('api/resume/load?userName='+encodeURIComponent(username)).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(result){if(result.status==='success'&&result.data){resumeData=Object.assign(getDefaultData(),result.data);['education','experience','projects'].forEach(function(sec){if(resumeData[sec]&&resumeData[sec].length){var mx=0;resumeData[sec].forEach(function(e){if(e.id&&e.id>mx)mx=e.id;});idCounters[sec]=mx;}});restoreFormFromData();updatePreview();sessionStorage.setItem('resume_username',username);document.getElementById('logged-in-as').classList.remove('hidden');document.getElementById('display-username').textContent=username;showToast('Resume loaded for "'+username+'"','success');}else showToast('No resume found for "'+username+'"','info');}).catch(function(err){console.error('Load failed:',err);showToast('Cannot connect to server','error');});}
+function deleteFromServer(){var username=getUserName();if(!username)return;var params=new URLSearchParams();params.append('userName',username);fetch('api/resume/delete',{method:'POST',body:params}).catch(function(){});try{localStorage.removeItem(STORAGE_KEY);}catch(e){}sessionStorage.removeItem('resume_username');}
+
+function autoSave(){clearTimeout(saveTimeout);saveTimeout=setTimeout(function(){var username=getUserName();if(!username){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(resumeData));}catch(e){}return;}var params=new URLSearchParams();params.append('userName',username);params.append('resumeData',JSON.stringify(resumeData));fetch('api/resume/save',{method:'POST',body:params}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(result){if(result.status==='success'){sessionStorage.setItem('resume_username',username);document.getElementById('logged-in-as').classList.remove('hidden');document.getElementById('display-username').textContent=username;var badge=document.getElementById('auto-save-badge');badge.classList.remove('hidden');setTimeout(function(){badge.classList.add('hidden');},2000);}}).catch(function(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(resumeData));}catch(e){}});},1500);}
+function scheduleAutoSave(){autoSave();}
+
+function restoreFormFromData(){Object.keys(resumeData.personal).forEach(function(field){var el=document.querySelector('[data-section="personal"][data-field="'+field+'"]');if(el&&resumeData.personal[field])el.value=resumeData.personal[field];});var sumEl=document.querySelector('[data-section="summary"][data-field="value"]');if(sumEl){sumEl.value=resumeData.summary.value||'';updateCharCount((resumeData.summary.value||'').length);}renderPhotoPreview();['education','experience','projects'].forEach(function(sec){document.getElementById(sec+'-entries').innerHTML='';(resumeData[sec]||[]).forEach(function(entry){if(!entry.id)return;var container=document.getElementById(sec+'-entries'),html='';if(sec==='education')html=buildEducationHTML(entry.id);else if(sec==='experience')html=buildExperienceHTML(entry.id);else if(sec==='projects')html=buildProjectHTML(entry.id);container.insertAdjacentHTML('beforeend',html);Object.keys(entry).forEach(function(field){if(field==='id')return;var el=document.querySelector('[data-section="'+sec+'"][data-id="'+entry.id+'"][data-field="'+field+'"]');if(el)el.value=entry[field]||'';});checkEmpty(sec);});});if(!resumeData.skills)resumeData.skills=[];renderPredefinedSkills();renderCustomSkills();}
+
+function clearAllData(){if(!confirm('Delete all resume data from database?'))return;resumeData=getDefaultData();idCounters={education:0,experience:0,skills:0,projects:0};['education','experience','projects'].forEach(function(sec){document.getElementById(sec+'-entries').innerHTML='';checkEmpty(sec);});document.querySelectorAll('#form-container input[type="text"],#form-container input[type="email"],#form-container input[type="tel"],#form-container input[type="url"],#form-container textarea').forEach(function(el){el.value='';});document.querySelectorAll('#form-container select').forEach(function(el){el.selectedIndex=0;});renderPhotoPreview();renderPredefinedSkills();renderCustomSkills();updateCharCount(0);updatePreview();goToStep(0);document.getElementById('logged-in-as').classList.add('hidden');deleteFromServer();showToast('All data cleared','info');}
+
+/* ===== PREVIEW RENDERING ===== */
+function updatePreview(){var c=document.getElementById('resume-render');if(currentTemplate==='classic')c.innerHTML=renderClassic();else if(currentTemplate==='modern')c.innerHTML=renderModern();else c.innerHTML=renderMinimal();}
+
+function getDisplayData(){var p=resumeData.personal;return {name:p.fullName||'Your Name',title:p.jobTitle||'Job Title',email:p.email||'your.email@example.com',phone:p.phone||'+1 (555) 000-0000',address:p.address||'City, State',linkedin:p.linkedin,website:p.website,photo:p.photo,summary:resumeData.summary.value||'',education:resumeData.education,experience:resumeData.experience,skills:resumeData.skills,projects:resumeData.projects};}
+function parseBullets(t){if(!t)return [];return t.split('\n').map(function(l){return l.replace(/^[\s\-•*]+/,'').trim();}).filter(function(l){return l.length>0;});}
+function groupSkills(skills){var g={};skills.forEach(function(s){if(!s.name)return;var c=s.category||'Skills';if(!g[c])g[c]=[];g[c].push(s);});return g;}
+
+/* ===== TEMPLATE: MODERN (compact, fits A4) ===== */
+function renderModern(){
+    var d=getDisplayData(),sg=groupSkills(d.skills),ph=!resumeData.personal.fullName,bs=ph?'opacity:0.5;':'';
+    /* Sidebar: 260px wide, tighter padding */
+    var sb='<div style="background:#0f172a;color:#e2e8f0;padding:28px 22px;width:260px;min-height:1123px;flex-shrink:0;">';
+    if(d.photo)sb+='<div style="width:90px;height:90px;border-radius:50%;overflow:hidden;margin:0 auto 16px;border:2.5px solid #059669;"><img src="'+d.photo+'" style="width:100%;height:100%;object-fit:cover;"></div>';
+    else sb+='<div style="width:90px;height:90px;border-radius:50%;background:#1e293b;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;border:2px dashed #334155;"><span style="color:#475569;font-size:0.65rem;">PHOTO</span></div>';
+    sb+='<div style="margin-bottom:20px;"><h3 style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:#059669;margin-bottom:10px;font-weight:700;">Contact</h3>';
+    if(d.email)sb+='<p style="font-size:0.72rem;margin-bottom:5px;color:#cbd5e1;">'+esc(d.email)+'</p>';
+    if(d.phone)sb+='<p style="font-size:0.72rem;margin-bottom:5px;color:#cbd5e1;">'+esc(d.phone)+'</p>';
+    if(d.address)sb+='<p style="font-size:0.72rem;margin-bottom:5px;color:#cbd5e1;">'+esc(d.address)+'</p>';
+    if(d.linkedin)sb+='<p style="font-size:0.72rem;margin-bottom:5px;color:#cbd5e1;">'+esc(d.linkedin)+'</p>';
+    if(d.website)sb+='<p style="font-size:0.72rem;margin-bottom:5px;color:#cbd5e1;">'+esc(d.website)+'</p>';
+    sb+='</div>';
+    var sk=Object.keys(sg);
+    if(sk.length>0){
+        sb+='<div><h3 style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.12em;color:#059669;margin-bottom:10px;font-weight:700;">Skills</h3>';
+        sk.forEach(function(cat){
+            sb+='<p style="font-size:0.58rem;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;margin-top:4px;font-weight:600;">'+esc(cat)+'</p>';
+            sb+='<p style="font-size:0.72rem;color:#cbd5e1;line-height:1.5;margin-bottom:10px;">'+sg[cat].map(function(s){return esc(s.name);}).join(', ')+'</p>';
+        });
+        sb+='</div>';
+    }
+    sb+='</div>';
+
+    /* Main content: tighter spacing */
+    var m='<div style="padding:28px 30px;flex:1;min-height:1123px;">';
+    m+='<h1 style="font-family:Playfair Display,serif;font-size:1.7rem;font-weight:700;color:#0f172a;margin:0 0 2px;line-height:1.15;">'+esc(d.name)+'</h1>';
+    m+='<p style="font-size:0.88rem;color:#059669;font-weight:600;margin:0 0 18px;">'+esc(d.title)+'</p>';
+
+    if(d.summary){
+        m+='<div style="margin-bottom:16px;"><h2 style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:#0f172a;font-weight:700;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #059669;display:inline-block;">Professional Summary</h2>';
+        m+='<p style="font-size:0.78rem;color:#475569;line-height:1.55;margin:0;">'+esc(d.summary)+'</p></div>';
+    }
+
+    if(d.experience.length>0){
+        m+='<div style="margin-bottom:16px;"><h2 style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:#0f172a;font-weight:700;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #059669;display:inline-block;">Work Experience</h2>';
+        d.experience.forEach(function(exp){
+            var ds=formatDate(exp.startMonth,exp.startYear,exp.endMonth,exp.endYear);
+            m+='<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.85rem;font-weight:700;color:#0f172a;margin:0;">'+esc(exp.title||'Job Title')+'</h3><span style="font-size:0.7rem;color:#64748b;">'+esc(ds)+'</span></div>';
+            m+='<p style="font-size:0.78rem;color:#059669;font-weight:500;margin:1px 0 0;">'+esc(exp.company||'Company')+(exp.location?' <span style="color:#94a3b8;">| '+esc(exp.location)+'</span>':'')+'</p>';
+            var bl=parseBullets(exp.description);
+            if(bl.length>0){m+='<ul style="margin:4px 0 0;padding-left:16px;">';bl.forEach(function(b){m+='<li style="font-size:0.73rem;color:#475569;line-height:1.45;margin-bottom:1px;">'+esc(b)+'</li>';});m+='</ul>';}
+            else if(exp.description)m+='<p style="font-size:0.73rem;color:#475569;line-height:1.45;margin:4px 0 0;">'+esc(exp.description)+'</p>';
+            m+='</div>';
+        });
+        m+='</div>';
+    }
+
+    if(d.education.length>0){
+        m+='<div style="margin-bottom:16px;"><h2 style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:#0f172a;font-weight:700;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #059669;display:inline-block;">Education</h2>';
+        d.education.forEach(function(edu){
+            var ds=formatDate(edu.startMonth,edu.startYear,edu.endMonth,edu.endYear);
+            m+='<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.82rem;font-weight:700;color:#0f172a;margin:0;">'+esc(edu.degree||'Degree')+(edu.field?' in '+esc(edu.field):'')+'</h3><span style="font-size:0.7rem;color:#64748b;">'+esc(ds)+'</span></div>';
+            m+='<p style="font-size:0.78rem;color:#059669;font-weight:500;margin:1px 0 0;">'+esc(edu.institution||'Institution')+(edu.gpa?' <span style="color:#94a3b8;">| GPA: '+esc(edu.gpa)+'</span>':'')+'</p>';
+            if(edu.description)m+='<p style="font-size:0.73rem;color:#475569;line-height:1.4;margin:3px 0 0;">'+esc(edu.description)+'</p>';
+            m+='</div>';
+        });
+        m+='</div>';
+    }
+
+    if(d.projects.length>0){
+        m+='<div><h2 style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:#0f172a;font-weight:700;margin-bottom:10px;padding-bottom:4px;border-bottom:2px solid #059669;display:inline-block;">Projects</h2>';
+        d.projects.forEach(function(proj){
+            var ds=formatDate(proj.startMonth,proj.startYear,proj.endMonth,proj.endYear);
+            m+='<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.82rem;font-weight:700;color:#0f172a;margin:0;">'+esc(proj.name||'Project')+'</h3><span style="font-size:0.7rem;color:#64748b;">'+esc(ds)+'</span></div>';
+            if(proj.role)m+='<p style="font-size:0.78rem;color:#059669;font-weight:500;margin:1px 0 0;">'+esc(proj.role)+'</p>';
+            if(proj.technologies)m+='<p style="font-size:0.68rem;color:#64748b;margin:2px 0 0;font-style:italic;">'+esc(proj.technologies)+'</p>';
+            if(proj.description)m+='<p style="font-size:0.73rem;color:#475569;line-height:1.45;margin:2px 0 0;">'+esc(proj.description)+'</p>';
+            if(proj.link)m+='<p style="font-size:0.7rem;color:#059669;margin:2px 0 0;">'+esc(proj.link)+'</p>';
+            m+='</div>';
+        });
+        m+='</div>';
+    }
+    m+='</div>';
+    return '<div style="display:flex;background:#fff;font-family:Outfit,sans-serif;'+bs+'">'+sb+m+'</div>';
+}
+
+/* ===== TEMPLATE: CLASSIC (compact) ===== */
+function renderClassic(){
+    var d=getDisplayData(),sg=groupSkills(d.skills),ph=!resumeData.personal.fullName,bs=ph?'opacity:0.5;':'',ac='#800020',dk='#1a1a2e';
+    var h='<div style="padding:36px 42px;font-family:Outfit,sans-serif;background:#fff;min-height:1123px;'+bs+'">';
+    h+='<div style="text-align:center;margin-bottom:18px;">';
+    if(d.photo)h+='<div style="width:70px;height:70px;border-radius:50%;overflow:hidden;margin:0 auto 10px;border:2px solid '+ac+';"><img src="'+d.photo+'" style="width:100%;height:100%;object-fit:cover;"></div>';
+    h+='<h1 style="font-family:Playfair Display,serif;font-size:1.9rem;font-weight:700;color:'+dk+';margin:0 0 3px;">'+esc(d.name)+'</h1>';
+    h+='<p style="font-size:0.88rem;color:'+ac+';font-weight:600;margin:0 0 8px;">'+esc(d.title)+'</p>';
+    var ct=[d.email,d.phone,d.address,d.linkedin,d.website].filter(Boolean);
+    if(ct.length)h+='<p style="font-size:0.72rem;color:#64748b;margin:0;">'+ct.map(function(c){return esc(c);}).join(' &nbsp;|&nbsp; ')+'</p>';
+    h+='</div><hr style="border:none;border-top:2px solid '+ac+';margin:0 0 16px;">';
+    function sh(t){return '<h2 style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:'+dk+';font-weight:700;margin:14px 0 8px;padding-bottom:4px;border-bottom:1.5px solid #e5e7eb;">'+t+'</h2>';}
+    if(d.summary){h+=sh('Professional Summary');h+='<p style="font-size:0.78rem;color:#475569;line-height:1.55;margin:0;">'+esc(d.summary)+'</p>';}
+    if(d.experience.length>0){h+=sh('Work Experience');d.experience.forEach(function(exp){var ds=formatDate(exp.startMonth,exp.startYear,exp.endMonth,exp.endYear);h+='<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.85rem;font-weight:700;color:'+dk+';margin:0;">'+esc(exp.title||'Job Title')+'</h3><span style="font-size:0.7rem;color:#64748b;">'+esc(ds)+'</span></div>';h+='<p style="font-size:0.78rem;color:'+ac+';font-weight:500;margin:1px 0 0;">'+esc(exp.company||'Company')+(exp.location?', '+esc(exp.location):'')+'</p>';var bl=parseBullets(exp.description);if(bl.length>0){h+='<ul style="margin:4px 0 0;padding-left:16px;">';bl.forEach(function(b){h+='<li style="font-size:0.73rem;color:#475569;line-height:1.45;margin-bottom:1px;">'+esc(b)+'</li>';});h+='</ul>';}else if(exp.description)h+='<p style="font-size:0.73rem;color:#475569;line-height:1.45;margin:3px 0 0;">'+esc(exp.description)+'</p>';h+='</div>';});}
+    if(d.education.length>0){h+=sh('Education');d.education.forEach(function(edu){var ds=formatDate(edu.startMonth,edu.startYear,edu.endMonth,edu.endYear);h+='<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.82rem;font-weight:700;color:'+dk+';margin:0;">'+esc(edu.degree||'Degree')+(edu.field?' in '+esc(edu.field):'')+'</h3><span style="font-size:0.7rem;color:#64748b;">'+esc(ds)+'</span></div>';h+='<p style="font-size:0.78rem;color:'+ac+';font-weight:500;margin:1px 0 0;">'+esc(edu.institution||'Institution')+(edu.gpa?' | GPA: '+esc(edu.gpa):'')+'</p>';if(edu.description)h+='<p style="font-size:0.73rem;color:#475569;line-height:1.4;margin:2px 0 0;">'+esc(edu.description)+'</p>';h+='</div>';});}
+    var sk=Object.keys(sg);if(sk.length>0){h+=sh('Skills');sk.forEach(function(cat){h+='<p style="font-size:0.73rem;color:#475569;margin:0 0 2px;"><strong style="color:'+dk+';">'+esc(cat)+':</strong> '+sg[cat].map(function(s){return esc(s.name);}).join(', ')+'</p>';});}
+    if(d.projects.length>0){h+=sh('Projects');d.projects.forEach(function(proj){var ds=formatDate(proj.startMonth,proj.startYear,proj.endMonth,proj.endYear);h+='<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.82rem;font-weight:700;color:'+dk+';margin:0;">'+esc(proj.name||'Project')+'</h3><span style="font-size:0.7rem;color:#64748b;">'+esc(ds)+'</span></div>';if(proj.role)h+='<p style="font-size:0.78rem;color:'+ac+';font-weight:500;margin:1px 0 0;">'+esc(proj.role)+'</p>';if(proj.technologies)h+='<p style="font-size:0.68rem;color:#64748b;margin:2px 0 0;font-style:italic;">'+esc(proj.technologies)+'</p>';if(proj.description)h+='<p style="font-size:0.73rem;color:#475569;line-height:1.4;margin:2px 0 0;">'+esc(proj.description)+'</p>';if(proj.link)h+='<p style="font-size:0.7rem;color:'+ac+';margin:2px 0 0;">'+esc(proj.link)+'</p>';h+='</div>';});}
+    h+='</div>';return h;
+}
+
+/* ===== TEMPLATE: MINIMAL (compact) ===== */
+function renderMinimal(){
+    var d=getDisplayData(),sg=groupSkills(d.skills),ph=!resumeData.personal.fullName,bs=ph?'opacity:0.5;':'',tc='#2d2d2d',mc='#888888',lc='#e0e0e0';
+    var h='<div style="padding:36px 42px;font-family:Outfit,sans-serif;background:#fff;min-height:1123px;color:'+tc+';'+bs+'">';
+    h+='<h1 style="font-size:1.8rem;font-weight:800;margin:0 0 1px;letter-spacing:-0.02em;color:'+tc+';">'+esc(d.name)+'</h1>';
+    h+='<p style="font-size:0.85rem;color:'+mc+';font-weight:400;margin:0 0 10px;">'+esc(d.title)+'</p>';
+    var ct=[d.email,d.phone,d.address,d.linkedin,d.website].filter(Boolean);
+    if(ct.length)h+='<p style="font-size:0.72rem;color:'+mc+';margin:0 0 16px;">'+ct.map(function(c){return esc(c);}).join(' &middot; ')+'</p>';
+    h+='<hr style="border:none;border-top:1px solid '+lc+';margin:0 0 16px;">';
+    function st(t){return '<p style="font-size:0.62rem;text-transform:uppercase;letter-spacing:0.15em;color:'+mc+';font-weight:700;margin:14px 0 8px;">'+t+'</p>';}
+    if(d.summary){h+=st('About');h+='<p style="font-size:0.78rem;color:#555;line-height:1.55;margin:0;">'+esc(d.summary)+'</p>';}
+    if(d.experience.length>0){h+=st('Experience');d.experience.forEach(function(exp,i){var ds=formatDate(exp.startMonth,exp.startYear,exp.endMonth,exp.endYear);h+='<div style="margin-bottom:12px;'+(i>0?'padding-top:12px;border-top:1px solid '+lc+';':'')+'"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.85rem;font-weight:700;margin:0;">'+esc(exp.title||'Job Title')+'</h3><span style="font-size:0.68rem;color:'+mc+';">'+esc(ds)+'</span></div>';h+='<p style="font-size:0.78rem;color:'+mc+';margin:2px 0 0;">'+esc(exp.company||'Company')+(exp.location?' &middot; '+esc(exp.location):'')+'</p>';var bl=parseBullets(exp.description);if(bl.length>0){h+='<ul style="margin:6px 0 0;padding-left:16px;">';bl.forEach(function(b){h+='<li style="font-size:0.75rem;color:#555;line-height:1.5;margin-bottom:1px;">'+esc(b)+'</li>';});h+='</ul>';}else if(exp.description)h+='<p style="font-size:0.75rem;color:#555;line-height:1.5;margin:4px 0 0;">'+esc(exp.description)+'</p>';h+='</div>';});}
+    if(d.education.length>0){h+=st('Education');d.education.forEach(function(edu,i){var ds=formatDate(edu.startMonth,edu.startYear,edu.endMonth,edu.endYear);h+='<div style="margin-bottom:8px;'+(i>0?'padding-top:8px;border-top:1px solid '+lc+';':'')+'"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.82rem;font-weight:700;margin:0;">'+esc(edu.degree||'Degree')+(edu.field?' in '+esc(edu.field):'')+'</h3><span style="font-size:0.68rem;color:'+mc+';">'+esc(ds)+'</span></div>';h+='<p style="font-size:0.78rem;color:'+mc+';margin:2px 0 0;">'+esc(edu.institution||'Institution')+(edu.gpa?' &middot; GPA: '+esc(edu.gpa):'')+'</p>';if(edu.description)h+='<p style="font-size:0.73rem;color:#555;line-height:1.4;margin:2px 0 0;">'+esc(edu.description)+'</p>';h+='</div>';});}
+    var sk=Object.keys(sg);if(sk.length>0){h+=st('Skills');sk.forEach(function(cat){h+='<p style="font-size:0.78rem;color:'+tc+';margin:0 0 3px;"><span style="font-weight:600;">'+esc(cat)+':</span> '+sg[cat].map(function(s){return esc(s.name);}).join(', ')+'</p>';});}
+    if(d.projects.length>0){h+=st('Projects');d.projects.forEach(function(proj,i){var ds=formatDate(proj.startMonth,proj.startYear,proj.endMonth,proj.endYear);h+='<div style="margin-bottom:10px;'+(i>0?'padding-top:10px;border-top:1px solid '+lc+';':'')+'"><div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;"><h3 style="font-size:0.82rem;font-weight:700;margin:0;">'+esc(proj.name||'Project')+'</h3><span style="font-size:0.68rem;color:'+mc+';">'+esc(ds)+'</span></div>';if(proj.role)h+='<p style="font-size:0.78rem;color:'+mc+';margin:2px 0 0;">'+esc(proj.role)+'</p>';if(proj.technologies)h+='<p style="font-size:0.68rem;color:'+mc+';margin:2px 0 0;font-style:italic;">'+esc(proj.technologies)+'</p>';if(proj.description)h+='<p style="font-size:0.75rem;color:#555;line-height:1.5;margin:2px 0 0;">'+esc(proj.description)+'</p>';if(proj.link)h+='<p style="font-size:0.7rem;color:#059669;margin:2px 0 0;">'+esc(proj.link)+'</p>';h+='</div>';});}
+    h+='</div>';return h;
+}
+
+/* ===== PDF EXPORT — captures FULL-SIZE off-screen element, no scaling ===== */
+function exportPDF(){
+    showToast('Generating PDF...','info');
+    /* Create an off-screen div at full A4 size — NO transform scaling */
+    var tempDiv = document.createElement('div');
+    tempDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;z-index:-1;';
+    /* Get the current template HTML */
+    var html = '';
+    if(currentTemplate==='classic') html = renderClassic();
+    else if(currentTemplate==='modern') html = renderModern();
+    else html = renderMinimal();
+    tempDiv.innerHTML = html;
+    document.body.appendChild(tempDiv);
+
+    html2pdf().set({
+        margin: 0,
+        filename: (resumeData.personal.fullName || 'Resume').replace(/\s+/g,'_') + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false, width: 794, windowWidth: 794 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    }).from(tempDiv).save().then(function(){
+        document.body.removeChild(tempDiv);
+        showToast('PDF downloaded successfully','success');
+    }).catch(function(err){
+        document.body.removeChild(tempDiv);
+        showToast('PDF generation failed','error');
+        console.error(err);
+    });
+}
+
+/* ===== PRINT — opens full-size version in new window ===== */
+function printResume(){
+    var html = '';
+    if(currentTemplate==='classic') html = renderClassic();
+    else if(currentTemplate==='modern') html = renderModern();
+    else html = renderMinimal();
+    var win = window.open('','_blank');
+    win.document.write('<!DOCTYPE html><html><head><title>Print Resume</title><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet"><style>@page{margin:0;size:A4;}*{box-sizing:border-box;}body{margin:0;font-family:Outfit,sans-serif;}</style></head><body>'+html+'</body></html>');
+    win.document.close(); win.focus();
+    setTimeout(function(){win.print();},600);
+}
+
+/* ===== INIT ===== */
+function init(){
+    document.getElementById('sidebar').classList.add('-translate-x-full','lg:translate-x-0');
+    document.querySelectorAll('.step-btn').forEach(function(btn){btn.addEventListener('click',function(){goToStep(parseInt(btn.dataset.step));});});
+    document.getElementById('username-input').addEventListener('keydown',function(e){if(e.key==='Enter')loadFromServer();});
+    document.getElementById('custom-skill-name').addEventListener('keydown',function(e){if(e.key==='Enter')addCustomSkill();});
+    document.getElementById('custom-skill-category').addEventListener('keydown',function(e){if(e.key==='Enter')addCustomSkill();});
+    renderPredefinedSkills();renderCustomSkills();updatePreview();
+    var savedUsername=sessionStorage.getItem('resume_username');
+    if(savedUsername){document.getElementById('username-input').value=savedUsername;loadFromServer();}
+}
+init();
+</script>
+</body>
+</html>
